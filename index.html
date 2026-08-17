@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>像素生活</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d18;--surface:#14141f;--surface2:#1c1c2a;--border:#2a2a3d;
+  --accent:#7c5cfc;--accent2:#fc5c7d;--gold:#fcb043;--gold2:#a78bfa;
+  --text:#e8e8f0;--sub:#8888aa;--success:#5cf8a4;--warn:#f8c643;
+  --red:#f85c5c;--cyan:#5ce8f8;--radius:14px;
+  font-family:'PingFang SC','Microsoft YaHei',sans-serif;
+}
+html,body{width:100%;height:100%;height:100dvh;height:-webkit-fill-available;overflow:hidden;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+#app{width:100%;height:100%;height:100dvh;height:-webkit-fill-available;position:relative}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;z-index:0}
+
+.hud-top{position:absolute;top:0;left:0;right:0;z-index:10;padding:16px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.panel{background:rgba(10,10,20,.75);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:10px 14px;backdrop-filter:blur(12px);pointer-events:auto}
+.time{font-size:32px;font-weight:800;letter-spacing:2px;text-shadow:0 0 20px rgba(124,92,252,.4)}
+.date{font-size:12px;color:var(--sub);margin-top:2px;letter-spacing:.5px}
+.progress-wrap{margin-top:10px}
+.progress-label{font-size:11px;color:var(--sub);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.progress-bar{width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;width:0%;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:4px;transition:width .4s ease}
+.progress-text{font-size:11px;color:#aaa;margin-top:3px;text-align:right;font-variant-numeric:tabular-nums}
+
+.right-btns{display:flex;gap:8px;pointer-events:auto}
+.icon-btn{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all .2s}
+.icon-btn:hover{border-color:var(--accent);background:var(--accent)}
+
+.bubbles{position:absolute;top:80px;left:16px;right:16px;z-index:15;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-height:calc(100dvh - 220px);overflow-y:auto;padding-bottom:20px}
+.bubble{background:rgba(20,20,31,.85);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:12px 16px;backdrop-filter:blur(12px);animation:bubbleIn .4s ease;pointer-events:auto;max-width:90%}
+.bubble.user{align-self:flex-end;background:rgba(124,92,252,.2);border-color:rgba(124,92,252,.3)}
+.bubble.ai{align-self:flex-start}
+.bubble-title{font-size:11px;color:var(--sub);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.bubble-content{font-size:13px;line-height:1.6;white-space:pre-wrap}
+.bubble-time{font-size:10px;color:#666;margin-top:6px;text-align:right}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.input-area{position:absolute;bottom:0;left:0;right:0;z-index:20;padding:12px 16px;padding-bottom:max(20px,env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,rgba(10,10,14,.9) 30%);pointer-events:none}
+.input-box{display:flex;gap:8px;align-items:flex-end;pointer-events:auto}
+.input-field{flex:1;background:var(--surface2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px 16px;color:var(--text);font-family:inherit;font-size:14px;outline:none;resize:none;min-height:44px;max-height:120px;line-height:1.4;transition:border-color .2s}
+.input-field:focus{border-color:var(--accent)}
+.send-btn{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s;flex-shrink:0}
+.send-btn:hover{transform:scale(1.08)}
+.send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.hint{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);font-size:11px;color:#666;z-index:15;pointer-events:none;text-align:center;white-space:nowrap}
+
+.settings-panel{position:absolute;top:60px;right:16px;width:320px;max-height:calc(100dvh - 100px);z-index:100;background:rgba(10,10,14,.95);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);display:none;flex-direction:column;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));overflow-y:auto;backdrop-filter:blur(12px)}
+.settings-panel.open{display:flex}
+.settings-title{font-size:18px;font-weight:800;margin-bottom:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.settings-card h3{font-size:12px;color:var(--sub);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.settings-card input,.settings-card select,.settings-card textarea{width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:6px}
+.settings-card input:focus,.settings-card select:focus,.settings-card textarea:focus{border-color:var(--accent)}
+.settings-card .btn{width:100%;padding:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px}
+.close-btn{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+.mem-item{padding:10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:6px}
+.mem-meta{font-size:11px;color:var(--sub);margin-bottom:4px}
+.mem-body{font-size:13px;line-height:1.5}
+
+.year-progress{margin-top:8px}
+.year-bar{width:100%;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.year-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--cyan));border-radius:2px;transition:width .3s}
+.year-text{font-size:10px;color:var(--sub);margin-top:2px;text-align:right}
+.weather-info{font-size:12px;color:var(--sub);margin-top:4px}
+
+@media (max-width:767px){
+  .hud-top{padding:12px}
+  .time{font-size:24px}
+  .date,.weather-info,.year-text{font-size:10px}
+  .progress-label{font-size:9px}
+  .progress-bar{height:6px}
+  .progress-text{font-size:9px}
+  .icon-btn{width:32px;height:32px;font-size:14px}
+  .bubbles{top:70px;max-height:calc(100dvh - 220px)}
+  .input-area{padding-bottom:max(20px,env(safe-area-inset-bottom))}
+  .hint{display:none}
+  .settings-panel{width:calc(100vw - 32px);right:16px}
+}
+
+@media (min-width:768px){
+  .bubbles{max-width:600px;left:50%;transform:translateX(-50%);right:auto}
+  .input-box{max-width:600px;margin:0 auto;width:100%}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="world"></canvas>
+
+  <div class="hud-top">
+    <div class="panel">
+      <div class="time" id="hudTime">--:--</div>
+      <div class="date" id="hudDate">----/--/--</div>
+      <div class="weather-info" id="weatherInfo">--°C</div>
+      <div class="year-progress" id="yearProgress"></div>
+      <div class="progress-wrap">
+        <div class="progress-label">年度目标进度</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">¥0 / ¥1000000</div>
+      </div>
+    </div>
+    <div class="right-btns">
+      <div class="icon-btn" onclick="toggleSettings()">⚙️</div>
+      <div class="icon-btn" onclick="toggleMemories()" title="记忆">🧠</div>
+    </div>
+  </div>
+
+  <div class="bubbles" id="bubbles"></div>
+
+  <div class="input-area">
+    <div class="hint" id="hint">记录目标、计划、收入... AI 会自动整理</div>
+    <div class="input-box">
+      <textarea class="input-field" id="userInput" placeholder="例如：今日自媒体收入 500 元" rows="1"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="handleSend()">➤</button>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="memPanel">
+    <div class="close-btn" onclick="toggleMemories()">✕</div>
+    <div class="settings-title">🧠 AI 记忆</div>
+    <div class="settings-card">
+      <div id="memList" style="max-height:60vh;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="close-btn" onclick="toggleSettings()">✕</div>
+    <div class="settings-title">⚙️ 设置</div>
+    <div class="settings-card">
+      <h3>OpenAI 配置</h3>
+      <input type="url" id="apiUrl" placeholder="完整地址，如 https://apihub.agnes-ai.com/v1">
+      <input type="password" id="apiKey" placeholder="API Key (sk-...)" >
+      <input type="text" id="modelName" placeholder="模型 (gpt-4o / gpt-3.5-turbo)" value="gpt-3.5-turbo">
+    </div>
+    <div class="settings-card">
+      <h3>城市</h3>
+      <input type="text" id="cityInput" placeholder="输入城市名，如：北京、上海">
+    </div>
+    <div class="settings-card">
+      <h3>年度目标 (¥)</h3>
+      <input type="number" id="yearTarget" placeholder="1000000" value="1000000">
+    </div>
+    <div class="settings-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">固定收入</h3>
+        <button class="btn" onclick="addFixedIncomeItem()" style="padding:6px 14px;font-size:14px;font-weight:700;width:auto;margin-top:0">+ 添加</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="fiName" placeholder="名称（如：工资、理财）" style="flex:2;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;min-width:0">
+        <input type="number" id="fiAmount" placeholder="金额" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;min-width:0">
+        <select id="fiPeriod" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;min-width:0">
+          <option value="daily">/天</option>
+          <option value="monthly">/月</option>
+          <option value="yearly">/年</option>
+        </select>
+      </div>
+      <div id="fixedIncomeList" style="max-height:200px;overflow-y:auto;margin-bottom:8px"></div>
+      <button class="btn" onclick="saveAllSettings()" style="font-size:14px;font-weight:700">保存全部</button>
+      <div id="fixedIncomePreview" style="margin-top:8px;font-size:12px;color:var(--sub)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const S = { profile: null, memories: [], settings: { apiUrl: '', apiKey: '', model: 'gpt-3.5-turbo', yearTarget: 1000000, fixedIncome: '', fixedIncomeItems: [], databaseIncome: 0, todayIncome: 0 }, weather: { code: 113, temp: null, label: '--', category: 'clear', city: '北京' } };
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0;
+let gameTime = { hour: 7, minute: 0 };
+let timeSpeed = 10;
+let lastTick = Date.now();
+let charX = 0, charY = 0, targetX = 0, targetY = 0;
+let charAction = 'idle';
+let charFacing = 1;
+let actionTimer = 0;
+let bubbleTimer = 0;
+const ACTIONS = ['work', 'study', 'rest', 'exercise', 'social', 'create'];
+const ACTION_DURATION = 8000;
+
+// 浮动文字系统
+const FLOAT_INTERVAL = 4000; // 每4秒切换
+let floatText = '';
+let floatTimer = 0;
+
+const motivationalQuotes = [
+  '每一分努力都是积累 💪',
+  '坚持就是胜利 🔥',
+  '今天也要加油哦！',
+  '梦想不会自动实现 ✨',
+  '行动是最好的答案 🎯',
+  '每一步都算数 🚀',
+  '自律带来自由 🌟',
+  '未来是奋斗出来的 💫',
+  '小步前进也是前进 🐾',
+  '专注当下，未来可期 🌈'
+];
+
+const actionMessages = {
+  work: ['正在搞钱中... 💼', '努力工作，认真生活', '收入+1 +1 +1'],
+  study: ['知识就是财富 📚', '充电时间到！', '学习中... ⚡'],
+  rest: ['休息一下也好 😴', '劳逸结合 🍃', '养精蓄锐~'],
+  exercise: ['运动使人快乐 🏃', '流汗的感觉真好！', '身体健康第一 💪'],
+  social: ['社交充电中 👥', '人际关系也是财富', '认识新朋友~'],
+  create: ['灵感在涌现 ✨', '创作时间到！', '产出有价值的内容'],
+  idle: ['等待指令中... 🎮']
+};
+
+const weatherMessages = {
+  clear: ['天气真好 ☀️', '适合出门走走！', '阳光明媚的一天'],
+  cloudy: ['阴天也别丧 🌥️', '云层后面有太阳', '低调也是一种美'],
+  rain: ['下雨了带伞☔', '听雨声也挺好', '风雨之后见彩虹'],
+  snow: ['下雪啦！❄️', '瑞雪兆丰年', '冬天来了春天还会远吗'],
+  thunder: ['注意安全⚡', '暴风雨是成长的洗礼', '勇敢面对雷电'],
+  fog: ['雾中前行 🌫️', '看不清路就慢一点', '迷雾终将散去']
+};
+
+function getRandomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getFloatText() {
+  const now = new Date();
+  const hour = now.getHours();
+  const target = parseFloat(S.settings.yearTarget) || 1000000;
+  let totalIncome = S.settings.databaseIncome || 0;
+  let todayIncome = S.settings.todayIncome || 0;
+  const percent = target > 0 ? Math.min(100, (totalIncome / target) * 100).toFixed(1) : 0;
+  const remaining = Math.max(0, target - totalIncome);
+  const cat = S.weather.category || 'clear';
+
+  // 根据当前动作给出提示
+  if (charAction !== 'idle' && charAction !== 'rest') {
+    return getRandomItem(actionMessages[charAction] || actionMessages.idle);
+  }
+
+  // 早上鼓励
+  if (hour >= 6 && hour < 9) {
+    return '新的一天开始了！☀️';
+  }
+  // 午休
+  if (hour >= 11 && hour < 13) {
+    return '到午饭时间了 🍚';
+  }
+  // 下午
+  if (hour >= 13 && hour < 17) {
+    return getRandomItem(motivationalQuotes);
+  }
+  // 晚上
+  if (hour >= 17 && hour < 22) {
+    return getRandomItem(actionMessages.social || actionMessages.rest);
+  }
+
+  // 如果有今天收入
+  if (todayIncome > 0) {
+    return `今日收入 ¥${todayIncome} 👍`;
+  }
+
+  // 显示进度
+  if (parseFloat(percent) > 0) {
+    return `今年目标 ${percent}% 📊`;
+  }
+
+  // 显示剩余
+  if (remaining > 0 && remaining < target) {
+    return `还差 ¥${Math.floor(remaining).toLocaleString()}`;
+  }
+
+  // 天气相关
+  return getRandomItem(weatherMessages[cat] || weatherMessages.clear);
+}
+
+async function init() {
+  resize();
+  window.addEventListener('resize', resize);
+  await loadSettings();
+  await loadMemories();
+  renderMemories();
+  await loadWeather();
+  updateHUD();
+  // 从数据库加载收入数据并更新进度
+  fetch('api/index.php?route=income')
+    .then(r => r.json())
+    .then(data => {
+      S.settings.databaseIncome = data.total || 0;
+      S.settings.todayIncome = data.today || 0;
+      updateProgress();
+    })
+    .catch(e => console.log('加载收入数据失败:', e));
+  charX = W * 0.5; charY = H * 0.55;
+  targetX = charX; targetY = charY;
+
+  // 初始化浮动文字
+  floatText = getFloatText();
+  floatTimer = 0;
+  lastIncomeRefresh = Date.now();
+
+  const input = document.getElementById('userInput');
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  });
+
+  const fiName = document.getElementById('fiName');
+  const fiAmount = document.getElementById('fiAmount');
+  const fiPeriod = document.getElementById('fiPeriod');
+  if (fiName && fiAmount) {
+    [fiName, fiAmount, fiPeriod].forEach(el => {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); addFixedIncomeItem(); }
+      });
+    });
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  
+  // 移动端特殊处理：处理浏览器工具栏变化
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    // 使用 dvh 单位计算实际可用高度
+    const dvh = window.innerHeight;
+    document.documentElement.style.setProperty('--dvh', dvh + 'px');
+    
+    // iOS Safari 地址栏变化时的处理
+    let lastDvh = dvh;
+    const checkDvh = () => {
+      const currentDvh = window.innerHeight;
+      if (Math.abs(currentDvh - lastDvh) > 50) {
+        // Viewport 高度变化超过 50px，重新计算布局
+        setTimeout(() => {
+          W = canvas.width = window.innerWidth;
+          H = canvas.height = window.innerHeight;
+          lastDvh = window.innerHeight;
+        }, 100);
+      }
+    };
+    
+    // 监听页面显示/隐藏事件（iOS 地址栏收起/展开）
+    document.addEventListener('visibilitychange', checkDvh);
+    window.addEventListener('orientationchange', () => setTimeout(checkDvh, 300));
+    
+    // 滚动时检查
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(checkDvh, 100);
+    }, { passive: true });
+  }
+}
+window.addEventListener('resize', resize);
+
+function loop() {
+  const now = Date.now();
+  const dt = now - lastTick;
+  lastTick = now;
+
+  // 浮动文字定时器
+  floatTimer += dt;
+  if (floatTimer >= FLOAT_INTERVAL) {
+    floatText = getFloatText();
+    floatTimer = 0;
+  }
+
+  gameTime.minute += (dt / 1000) * timeSpeed * 0.5;
+  if (gameTime.minute >= 60) { gameTime.minute = 0; gameTime.hour = (gameTime.hour + 1) % 24; }
+
+  updateActivity(dt);
+  draw();
+  updateHUD();
+
+  // 每5分钟刷新天气
+  if (now - lastWeatherRefresh > 300000) {
+    loadWeather();
+    lastWeatherRefresh = now;
+  }
+
+  // 每2分钟刷新收入数据（用于浮动文字）
+  if (now - lastIncomeRefresh > 120000) {
+    updateProgress();
+    floatText = getFloatText(); // 立即更新文字
+    lastIncomeRefresh = now;
+  }
+
+  requestAnimationFrame(loop);
+}
+
+let lastWeatherRefresh = 0;
+let lastIncomeRefresh = 0;
+
+function updateActivity(dt) {
+  actionTimer += dt;
+  if (actionTimer >= ACTION_DURATION) {
+    actionTimer = 0;
+    charAction = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
+    switch(charAction) {
+      case 'work': targetX = W * 0.7; targetY = H * 0.5; break;
+      case 'study': targetX = W * 0.3; targetY = H * 0.4; break;
+      case 'rest': targetX = W * 0.5; targetY = H * 0.7; break;
+      case 'exercise': targetX = W * 0.2; targetY = H * 0.6; break;
+      case 'social': targetX = W * 0.8; targetY = H * 0.45; break;
+      case 'create': targetX = W * 0.5; targetY = H * 0.35; break;
+      default: targetX = W * 0.5; targetY = H * 0.55;
+    }
+    charFacing = targetX > charX ? 1 : -1;
+  }
+
+  const dx = targetX - charX;
+  const dy = targetY - charY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist > 2) {
+    charX += dx * 0.02;
+    charY += dy * 0.02;
+  }
+}
+
+function draw() {
+  const period = getPeriod();
+  const weather = S.weather;
+  const skyColors = getSkyColors(period, weather);
+  
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, skyColors[0]);
+  grad.addColorStop(0.5, skyColors[1]);
+  grad.addColorStop(1, skyColors[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#1a2a1a';
+  ctx.fillRect(0, H * 0.7, W, H * 0.3);
+  ctx.fillStyle = '#2a3a2a';
+  for (let i = 0; i < W; i += 40) {
+    ctx.fillRect(i, H * 0.7, 2, H * 0.3);
+  }
+
+  drawScene();
+  drawCharacter();
+  drawParticles();
+}
+
+function drawScene() {
+  const period = getPeriod();
+  const isNight = period.key === 'night' || period.key === 'latenight';
+  const weather = S.weather;
+  const cat = weather.category || 'clear';
+
+  // 绘制天气图标（替换太阳）
+  drawWeatherIcon(weather, isNight);
+
+  // 根据天气调整场景颜色
+  let groundColor = '#1a2a1a';
+  let treeGreen = '#2a5a2a';
+  let treeLight = '#3a7a3a';
+
+  if (cat === 'rain' || cat === 'rain_showers' || cat === 'drizzle' || cat === 'patchy') {
+    // 雨天 - 更暗
+    groundColor = '#152015';
+    treeGreen = '#1a4a1a';
+    treeLight = '#2a6a2a';
+  } else if (cat === 'snow' || cat === 'snow_showers' || cat === 'sleet' || cat === 'sleet_showers') {
+    // 雪天 - 白色覆盖
+    groundColor = '#e8e8f0';
+    treeGreen = '#8aaaba';
+    treeLight = '#aabbcc';
+  } else if (cat === 'fog' || cat === 'mist' || cat === 'freezing') {
+    // 雾天 - 灰色
+    groundColor = '#4a4a5a';
+    treeGreen = '#5a5a6a';
+    treeLight = '#6a6a7a';
+  } else if (cat === 'thunder') {
+    // 雷雨 - 暗黑
+    groundColor = '#0f1510';
+    treeGreen = '#0a2a0a';
+    treeLight = '#1a4a1a';
+  }
+
+  ctx.fillStyle = groundColor;
+  ctx.fillRect(0, H * 0.7, W, H * 0.3);
+
+  // 雪地上的树桩
+  if (cat === 'snow' || cat === 'snow_showers' || cat === 'sleet' || cat === 'sleet_showers') {
+    ctx.fillStyle = '#3a3a4a';
+    for (let i = 0; i < W; i += 40) {
+      ctx.fillRect(i, H * 0.7, 2, H * 0.3);
+    }
+  } else {
+    ctx.fillStyle = '#2a3a2a';
+    for (let i = 0; i < W; i += 40) {
+      ctx.fillRect(i, H * 0.7, 2, H * 0.3);
+    }
+  }
+
+  const trees = [W*0.1, W*0.25, W*0.6, W*0.75, W*0.9];
+  trees.forEach((tx, i) => {
+    const ty = H * 0.72;
+    const scale = 0.8 + (i % 3) * 0.2;
+
+    // 树干
+    ctx.fillStyle = '#4a3728';
+    ctx.fillRect(tx - 4, ty - 40 * scale, 8, 40 * scale);
+
+    // 树冠
+    ctx.fillStyle = treeGreen;
+    ctx.beginPath(); ctx.arc(tx, ty - 50 * scale, 25 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = treeLight;
+    ctx.beginPath(); ctx.arc(tx - 8, ty - 45 * scale, 18 * scale, 0, Math.PI * 2); ctx.fill();
+
+    // 雪覆盖效果
+    if (cat === 'snow' || cat === 'snow_showers' || cat === 'sleet' || cat === 'sleet_showers') {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath(); ctx.arc(tx, ty - 55 * scale, 15 * scale, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // 根据天气绘制特殊效果
+  drawWeatherEffects(weather);
+}
+
+function getSkyColors(period, weather) {
+  const baseColors = {
+    'latenight': ['#050a1f','#0c1445','#141e6b'],
+    'morning': ['#ff9a9e','#fecfef','#fdfcfb'],
+    'forenoon': ['#4a90e2','#87CEEB','#b8e0f0'],
+    'noon': ['#56CCF2','#2F80ED','#1a5fb4'],
+    'afternoon': ['#f6d365','#fda085','#f8b739'],
+    'evening': ['#ff7e5f','#feb47b','#ff6b6b'],
+    'night': ['#0c1445','#1a237e','#283593']
+  };
+
+  let colors = baseColors[period.key] || baseColors['forenoon'];
+  const cat = weather.category || 'clear';
+
+  if (cat === 'rain' || cat === 'rain_showers' || cat === 'drizzle' || cat === 'patchy') {
+    colors = ['#6b7280','#9ca3af','#d1d5db'];
+  } else if (cat === 'thunder') {
+    colors = ['#1f2937','#374151','#4b5563'];
+  } else if (cat === 'snow' || cat === 'snow_showers' || cat === 'sleet' || cat === 'sleet_showers') {
+    colors = ['#e5e7eb','#f3f4f6','#ffffff'];
+  } else if (cat === 'fog' || cat === 'mist' || cat === 'freezing') {
+    colors = ['#9ca3af','#bfc9df','#e0e7ef'];
+  } else if (cat === 'cloudy') {
+    colors = ['#9ca3af','#c4c9d4','#d4d9e4'];
+  }
+
+  return colors;
+}
+
+function drawWeatherIcon(weather, isNight) {
+  const x = W * 0.8;
+  const y = H * 0.12;
+  const cat = weather.category || 'clear';
+
+  // 月亮（夜晚晴朗）
+  if (isNight && cat === 'clear') {
+    ctx.fillStyle = '#f5f5dc';
+    ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0c1445';
+    ctx.beginPath(); ctx.arc(x + 6, y - 3, 16, 0, Math.PI * 2); ctx.fill();
+  }
+  // 晴天
+  else if (cat === 'clear') {
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath(); ctx.arc(x, y, 25, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * 45) * Math.PI / 180;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(angle) * 30, y + Math.sin(angle) * 30);
+      ctx.lineTo(x + Math.cos(angle) * 40, y + Math.sin(angle) * 40);
+      ctx.stroke();
+    }
+  }
+  // 多云
+  else if (cat === 'cloudy') {
+    drawCloud(x - 20, y - 10, 0.8);
+    drawCloud(x + 20, y, 0.6);
+  }
+  // 雾/霾
+  else if (cat === 'fog' || cat === 'mist' || cat === 'freezing') {
+    ctx.fillStyle = 'rgba(192, 192, 192, 0.5)';
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.ellipse(x - 30 + i * 20, y + i * 5, 25, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // 雨
+  else if (cat === 'rain' || cat === 'rain_showers' || cat === 'drizzle' || cat === 'patchy') {
+    drawCloud(x, y - 20, 1);
+    ctx.strokeStyle = '#87CEEB';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const rx = x - 30 + i * 8;
+      const ry = y;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 3, ry + 15);
+      ctx.stroke();
+    }
+  }
+  // 雪
+  else if (cat === 'snow' || cat === 'snow_showers' || cat === 'sleet' || cat === 'sleet_showers') {
+    drawCloud(x, y - 20, 1);
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 10; i++) {
+      const sx = x - 25 + Math.random() * 50;
+      const sy = y + Math.random() * 20;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // 雷雨
+  else if (cat === 'thunder') {
+    drawCloud(x, y - 20, 1.2);
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.moveTo(x + 10, y);
+    ctx.lineTo(x - 5, y + 15);
+    ctx.lineTo(x + 5, y + 15);
+    ctx.lineTo(x - 3, y + 30);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawCloud(x, y, scale) {
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.beginPath();
+  ctx.arc(x, y, 15 * scale, 0, Math.PI * 2);
+  ctx.arc(x + 15 * scale, y - 5 * scale, 12 * scale, 0, Math.PI * 2);
+  ctx.arc(x + 25 * scale, y, 15 * scale, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+let weatherParticles = [];
+let lightningTimer = 0;
+
+function drawWeatherEffects(weather) {
+  const now = Date.now();
+  const cat = weather.category || 'clear';
+
+  // 雨水效果
+  if (cat === 'rain' || cat === 'rain_showers' || cat === 'drizzle' || cat === 'patchy') {
+    const intensity = (cat === 'drizzle' || cat === 'patchy') ? 0.4 : 1;
+    ctx.strokeStyle = `rgba(174, 194, 224, ${intensity * 0.6})`;
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < 50; i++) {
+      const x = (now * 0.15 + i * 37) % W;
+      const y = (now * 0.5 + i * 23) % H;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 5, y + 15);
+      ctx.stroke();
+    }
+  }
+
+  // 雪效果
+  if (cat === 'snow' || cat === 'snow_showers' || cat === 'sleet' || cat === 'sleet_showers') {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+
+    for (let i = 0; i < 40; i++) {
+      const x = (now * 0.03 + i * 47 + Math.sin(now * 0.001 + i) * 20) % W;
+      const y = (now * 0.08 + i * 31) % H;
+      const size = 1.5 + Math.random() * 2;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 雾效果
+  if (cat === 'fog' || cat === 'mist' || cat === 'freezing') {
+    const gradient = ctx.createLinearGradient(0, H * 0.5, 0, H);
+    gradient.addColorStop(0, 'rgba(200, 200, 200, 0)');
+    gradient.addColorStop(1, 'rgba(200, 200, 200, 0.3)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, W, H);
+
+    // 流动的雾
+    for (let i = 0; i < 5; i++) {
+      const fogX = (now * 0.02 + i * 200) % (W + 200) - 100;
+      ctx.fillStyle = 'rgba(220, 220, 220, 0.1)';
+      ctx.beginPath();
+      ctx.ellipse(fogX, H * 0.6, 120, 30, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 雷雨/闪电效果
+  if (cat === 'thunder') {
+    // 闪电随机闪烁
+    if (Math.random() < 0.005) {
+      lightningTimer = 10;
+    }
+
+    if (lightningTimer > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${lightningTimer / 10 * 0.3})`;
+      ctx.fillRect(0, 0, W, H);
+      lightningTimer--;
+
+      // 闪电条纹
+      if (lightningTimer > 5) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let lx = W * 0.7;
+        let ly = 0;
+        ctx.moveTo(lx, ly);
+        for (let i = 0; i < 5; i++) {
+          lx += (Math.random() - 0.5) * 40;
+          ly += 30;
+          ctx.lineTo(lx, ly);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // 密集雨
+    ctx.strokeStyle = 'rgba(174, 194, 224, 0.8)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 80; i++) {
+      const x = (now * 0.2 + i * 29) % W;
+      const y = (now * 0.6 + i * 19) % H;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 6, y + 18);
+      ctx.stroke();
+    }
+  }
+}
+
+// 城市坐标表（保留用于可能的其他功能）
+const CITY_COORDS = {
+  '北京': { lat: 39.9, lon: 116.4 },
+  '上海': { lat: 31.2, lon: 121.5 },
+  '广州': { lat: 23.1, lon: 113.3 },
+  '深圳': { lat: 22.5, lon: 114.1 },
+  '杭州': { lat: 30.3, lon: 120.2 },
+  '成都': { lat: 30.6, lon: 104.1 },
+  '武汉': { lat: 30.6, lon: 114.3 },
+  '西安': { lat: 34.3, lon: 108.9 },
+  '南京': { lat: 32.1, lon: 118.8 },
+  '重庆': { lat: 29.6, lon: 106.5 },
+  '天津': { lat: 39.1, lon: 117.2 },
+  '苏州': { lat: 31.3, lon: 120.6 },
+  '长沙': { lat: 28.2, lon: 112.9 },
+  '郑州': { lat: 34.7, lon: 113.6 },
+  '青岛': { lat: 36.1, lon: 120.4 },
+  '大连': { lat: 38.9, lon: 121.6 },
+  '厦门': { lat: 24.5, lon: 118.1 },
+  '昆明': { lat: 25.0, lon: 102.7 },
+  '哈尔滨': { lat: 45.8, lon: 126.6 },
+  '长春': { lat: 43.9, lon: 125.3 },
+  '沈阳': { lat: 41.8, lon: 123.4 },
+  '济南': { lat: 36.7, lon: 117.0 },
+  '合肥': { lat: 31.9, lon: 117.3 },
+  '福州': { lat: 26.1, lon: 119.3 },
+  '南昌': { lat: 28.7, lon: 115.9 },
+  '石家庄': { lat: 38.0, lon: 114.5 },
+  '太原': { lat: 37.9, lon: 112.5 },
+  '南宁': { lat: 22.8, lon: 108.3 },
+  '贵阳': { lat: 26.6, lon: 106.7 },
+  '乌鲁木齐': { lat: 43.8, lon: 87.6 },
+  '拉萨': { lat: 29.7, lon: 91.1 },
+  '呼和浩特': { lat: 40.8, lon: 111.7 },
+  '银川': { lat: 38.5, lon: 106.2 },
+  '西宁': { lat: 36.6, lon: 101.7 },
+  '兰州': { lat: 36.1, lon: 103.7 }
+};
+
+function getWeatherCategory(code) {
+  // wttr.in 天气代码 → 内部类别
+  if (code === 113) return 'clear';
+  if (code >= 116 && code <= 122) return 'cloudy';
+  if (code >= 143 && code <= 158) return 'mist';
+  if (code >= 176 && code <= 185) return 'patchy';
+  if (code >= 200 && code <= 200) return 'thunder';
+  if (code >= 227 && code <= 230) return 'snow';
+  if (code >= 248 && code <= 260) return 'fog';
+  if (code >= 263 && code <= 269) return 'drizzle';
+  if (code >= 281 && code <= 284) return 'freezing';
+  if (code >= 293 && code <= 308) return 'rain';
+  if (code >= 311 && code <= 317) return 'freezing_rain';
+  if (code >= 320 && code <= 326) return 'sleet';
+  if (code >= 329 && code <= 338) return 'snow';
+  if (code >= 350 && code <= 350) return 'ice';
+  if (code >= 353 && code <= 359) return 'rain_showers';
+  if (code >= 362 && code <= 368) return 'sleet_showers';
+  if (code >= 371 && code <= 377) return 'snow_showers';
+  if (code >= 380 && code <= 395) return 'thunder';
+  return 'clear';
+}
+
+async function loadWeather() {
+  const city = S.settings.city || '北京';
+  S.weather.city = city;
+
+  try {
+    const resp = await fetch('https://wttr.in/' + encodeURIComponent(city) + '?format=j1');
+    const data = await resp.json();
+    console.log('天气API原始数据:', JSON.stringify(data).substring(0, 300));
+
+    if (data.current_condition && data.current_condition.length > 0) {
+      const current = data.current_condition[0];
+      const rawCode = parseInt(current.weatherCode) || 113;
+      S.weather.code = rawCode;
+      S.weather.category = getWeatherCategory(rawCode);
+      S.weather.temp = parseInt(current.temp_C) || 20;
+      S.weather.label = getWeatherLabel(rawCode);
+      console.log('天气已更新:', city, S.weather.temp + '°C', S.weather.label, '类别:', S.weather.category);
+    } else {
+      console.log('API 返回数据异常:', data);
+      S.weather.category = 'clear';
+    }
+  } catch(e) {
+    console.log('获取天气失败:', e);
+    S.weather.category = 'clear';
+  }
+}
+
+function getWeatherLabel(code) {
+  const labels = {
+    113: '晴', 116: '多云', 119: '阴', 122: '阴',
+    143: '雾', 176: '零星雨', 179: '零星雪', 182: '零星雨夹雪', 185: '零星雨夹雪',
+    200: '雷暴', 227: '吹雪', 230: '暴风雪',
+    248: '雾', 260: '冻雾',
+    263: '毛毛雨', 266: '毛毛雨', 281: '冻毛毛雨', 284: '冻毛毛雨',
+    293: '零星小雨', 296: '小雨', 299: '零星中雨', 302: '中雨', 305: '零星大雨', 308: '大雨',
+    311: '小冻雨', 314: '中冻雨', 317: '大冻雨',
+    320: '小 sleety', 323: '零星 sleety', 326: '中 sleety',
+    329: '零星小雪', 332: '小雪', 335: '中雪', 338: '大雪',
+    350: '冰粒',
+    353: '小阵雨', 356: '中阵雨', 359: '大阵雨',
+    362: '小雨夹雪', 365: '中雨夹雪', 368: '大雨夹雪',
+    371: '小暴雪', 374: '中暴雪', 377: '大暴雪',
+    380: '小雷阵雨', 383: '中雷阵雨', 386: '大雷阵雨',
+    389: '强雷阵雨', 392: '小雪雨夹雪', 395: '大雪雨夹雪'
+  };
+  return labels[code] || '晴';
+}
+
+function drawCharacter() {
+  const x = charX;
+  const y = charY;
+  const time = Date.now();
+  const breathe = Math.sin(time * 0.003) * 1.5;
+  const isMoving = Math.abs(targetX - charX) > 5 || Math.abs(targetY - charY) > 5;
+  const walkPhase = isMoving ? Math.sin(time * 0.015) : 0;
+  const scale = 1.8;
+
+  // 阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 12, 18 * scale, 5 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.translate(-x, -y);
+
+  // 绘制角色
+  drawDetailedCharacter(x, y - breathe, charAction, walkPhase);
+
+  ctx.restore();
+
+  // 活动标签（浮动文字系统）
+  const headTop = y - breathe - 55 * scale;
+  ctx.font = 'bold 12px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  const metrics = ctx.measureText(floatText);
+  const textW = metrics.width + 12;
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(x - textW/2, headTop - 16, textW, 18, 4);
+    ctx.fill();
+  } else {
+    ctx.fillRect(x - textW/2, headTop - 16, textW, 18);
+  }
+  ctx.fillStyle = '#fff';
+  ctx.fillText(floatText, x, headTop);
+}
+
+function drawDetailedCharacter(x, y, action, walkPhase) {
+  const now = Date.now();
+  
+  // 颜色方案
+  const skinColor = '#ffdbac';
+  const skinShadow = '#e8c49a';
+  const hairColor = '#3d2b1f';
+  const eyeColor = '#2d2d2d';
+  
+  // 根据动作选择衣服颜色
+  const outfitColors = {
+    work: { shirt: '#5b7cf7', pants: '#2d3a5c', shoes: '#1a1a2e' },
+    study: { shirt: '#9b7cf7', pants: '#3d2d5c', shoes: '#1a1a2e' },
+    rest: { shirt: '#7cf7a4', pants: '#2d5c3d', shoes: '#1a2e1a' },
+    exercise: { shirt: '#f7a47c', pants: '#5c3d2d', shoes: '#2e1a1a' },
+    social: { shirt: '#f77c9b', pants: '#5c2d3d', shoes: '#2e1a1a' },
+    create: { shirt: '#f7d77c', pants: '#5c4d2d', shoes: '#2e2a1a' },
+    idle: { shirt: '#6366f1', pants: '#1e293b', shoes: '#0f172a' }
+  };
+  
+  const colors = outfitColors[action] || outfitColors.idle;
+  
+  // 腿部动画
+  const legSwing = walkPhase * 8;
+  const armSwing = walkPhase * 6;
+  
+  // === 腿部 ===
+  // 左腿
+  ctx.save();
+  ctx.translate(x - 6, y + 8);
+  ctx.rotate(legSwing * Math.PI / 180);
+  // 裤子
+  ctx.fillStyle = colors.pants;
+  ctx.fillRect(-4, 0, 8, 14);
+  // 鞋子
+  ctx.fillStyle = colors.shoes;
+  ctx.fillRect(-5, 12, 10, 5);
+  // 鞋底
+  ctx.fillStyle = '#444';
+  ctx.fillRect(-5, 16, 10, 2);
+  ctx.restore();
+  
+  // 右腿
+  ctx.save();
+  ctx.translate(x + 6, y + 8);
+  ctx.rotate(-legSwing * Math.PI / 180);
+  ctx.fillStyle = colors.pants;
+  ctx.fillRect(-4, 0, 8, 14);
+  ctx.fillStyle = colors.shoes;
+  ctx.fillRect(-5, 12, 10, 5);
+  ctx.fillStyle = '#444';
+  ctx.fillRect(-5, 16, 10, 2);
+  ctx.restore();
+  
+  // === 身体/躯干 ===
+  // 身体主体（圆角矩形）
+  ctx.fillStyle = colors.shirt;
+  ctx.beginPath();
+  ctx.moveTo(x - 10 + 4, y - 20);
+  ctx.lineTo(x + 10 - 4, y - 20);
+  ctx.quadraticCurveTo(x + 10, y - 20, x + 10, y - 20 + 4);
+  ctx.lineTo(x + 10, y - 20 + 28 - 4);
+  ctx.quadraticCurveTo(x + 10, y - 20 + 28, x + 10 - 4, y - 20 + 28);
+  ctx.lineTo(x - 10 + 4, y - 20 + 28);
+  ctx.quadraticCurveTo(x - 10, y - 20 + 28, x - 10, y - 20 + 28 - 4);
+  ctx.lineTo(x - 10, y - 20 + 4);
+  ctx.quadraticCurveTo(x - 10, y - 20, x - 10 + 4, y - 20);
+  ctx.closePath();
+  ctx.fill();
+  
+  // 衣服细节（领口）
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(x - 4, y - 20);
+  ctx.lineTo(x + 4, y - 20);
+  ctx.lineTo(x, y - 14);
+  ctx.closePath();
+  ctx.fill();
+  
+  // 衣服纽扣
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(x, y - 12 + i * 8, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // === 手臂 ===
+  // 左臂
+  ctx.save();
+  ctx.translate(x - 12, y - 12);
+  const leftArmAngle = action === 'work' ? -0.3 : (action === 'exercise' ? armSwing * 0.05 : Math.sin(now * 0.002) * 0.1);
+  ctx.rotate(leftArmAngle);
+  ctx.fillStyle = colors.shirt;
+  ctx.fillRect(-4, 0, 8, 18);
+  // 手
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(0, 20, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  
+  // 右臂
+  ctx.save();
+  ctx.translate(x + 12, y - 12);
+  const rightArmAngle = action === 'work' ? 0.3 : (action === 'exercise' ? -armSwing * 0.05 : Math.sin(now * 0.002 + Math.PI) * 0.1);
+  ctx.rotate(rightArmAngle);
+  ctx.fillStyle = colors.shirt;
+  ctx.fillRect(-4, 0, 8, 18);
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(0, 20, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  
+  // === 头部 ===
+  const headY = y - 32;
+  
+  // 头发后层
+  ctx.fillStyle = hairColor;
+  ctx.beginPath();
+  ctx.arc(x, headY - 2, 14, Math.PI, 0);
+  ctx.fill();
+  
+  // 脸部
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(x, headY, 12, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 脸部高光
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.beginPath();
+  ctx.arc(x - 3, headY - 4, 4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 眼睛
+  const blinkPhase = Math.sin(now * 0.003);
+  const isBlinking = blinkPhase > 0.95;
+  
+  if (!isBlinking) {
+    // 左眼
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(x - 4, headY - 1, 3, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = eyeColor;
+    ctx.beginPath();
+    ctx.arc(x - 4, headY - 1, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x - 3.5, headY - 1.5, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 右眼
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(x + 4, headY - 1, 3, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = eyeColor;
+    ctx.beginPath();
+    ctx.arc(x + 4, headY - 1, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x + 4.5, headY - 1.5, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // 闭眼
+    ctx.strokeStyle = eyeColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 7, headY - 1);
+    ctx.lineTo(x - 1, headY - 1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 1, headY - 1);
+    ctx.lineTo(x + 7, headY - 1);
+    ctx.stroke();
+  }
+  
+  // 嘴巴（根据动作变化）
+  ctx.strokeStyle = '#c4a882';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (action === 'exercise' || action === 'social') {
+    // 开心/运动 - 微笑
+    ctx.arc(x, headY + 4, 3, 0.2, Math.PI - 0.2);
+  } else if (action === 'rest') {
+    // 休息 - 平静
+    ctx.moveTo(x - 2, headY + 5);
+    ctx.lineTo(x + 2, headY + 5);
+  } else {
+    // 其他 - 正常
+    ctx.arc(x, headY + 3, 2, 0.3, Math.PI - 0.3);
+  }
+  ctx.stroke();
+  
+  // 眉毛
+  ctx.strokeStyle = hairColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - 7, headY - 5);
+  ctx.lineTo(x - 2, headY - 6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 2, headY - 6);
+  ctx.lineTo(x + 7, headY - 5);
+  ctx.stroke();
+  
+  // 头发前层
+  ctx.fillStyle = hairColor;
+  ctx.beginPath();
+  ctx.arc(x, headY - 3, 13, Math.PI, 0);
+  ctx.fill();
+  
+  // 刘海
+  ctx.beginPath();
+  ctx.moveTo(x - 12, headY - 5);
+  ctx.quadraticCurveTo(x - 8, headY - 15, x - 2, headY - 10);
+  ctx.quadraticCurveTo(x, headY - 18, x + 4, headY - 12);
+  ctx.quadraticCurveTo(x + 10, headY - 16, x + 14, headY - 5);
+  ctx.lineTo(x + 14, headY - 8);
+  ctx.lineTo(x - 14, headY - 8);
+  ctx.closePath();
+  ctx.fill();
+  
+  // 头发高光
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(x - 4, headY - 14, 5, 3, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 耳朵
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(x - 12, headY, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 12, headY, 3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 动作特效
+  drawActionEffect(x, y, action, now);
+}
+
+function drawActionEffect(x, y, action, now) {
+  // 工作 - 电脑/文件
+  if (action === 'work') {
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + 10, y - 8, 14, 10);
+    ctx.fillStyle = '#5cf8a4';
+    ctx.fillRect(x + 11, y - 7, 12, 8);
+    // 文字线条
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x + 13, y - 5 + i * 2.5, 8, 1.5);
+    }
+  }
+  
+  // 学习 - 书本
+  if (action === 'study') {
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(x - 18, y - 6, 10, 14);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x - 17, y - 5, 8, 12);
+    // 书页线
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x - 16, y - 3 + i * 2.5);
+      ctx.lineTo(x - 10, y - 3 + i * 2.5);
+      ctx.stroke();
+    }
+  }
+  
+  // 休息 - Zzz
+  if (action === 'rest') {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'left';
+    const zOffset = Math.sin(now * 0.003) * 3;
+    ctx.fillText('Z', x + 12, y - 45 + zOffset);
+    ctx.font = 'bold 8px sans-serif';
+    ctx.fillText('z', x + 18, y - 52 + zOffset);
+    ctx.font = 'bold 6px sans-serif';
+    ctx.fillText('z', x + 22, y - 58 + zOffset);
+  }
+  
+  // 运动 - 汗珠
+  if (action === 'exercise') {
+    ctx.fillStyle = 'rgba(100,200,255,0.6)';
+    const sweatX = x + 14 + Math.sin(now * 0.01) * 3;
+    const sweatY = y - 40 + (now * 0.05 % 15);
+    ctx.beginPath();
+    ctx.arc(sweatX, sweatY, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // 社交 - 对话气泡
+  if (action === 'social') {
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(x + 10, y - 50, 20, 14, 4);
+      ctx.fill();
+    } else {
+      ctx.fillRect(x + 10, y - 50, 20, 14);
+    }
+    ctx.fillStyle = '#333';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('...', x + 20, y - 41);
+  }
+  
+  // 创作 - 星星
+  if (action === 'create') {
+    ctx.fillStyle = '#fcb043';
+    const starPhase = now * 0.003;
+    for (let i = 0; i < 3; i++) {
+      const sx = x + 12 + Math.cos(starPhase + i * 2) * 8;
+      const sy = y - 35 + Math.sin(starPhase + i * 2) * 5;
+      drawStar(sx, sy, 3);
+    }
+  }
+}
+
+function drawStar(x, y, size) {
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+    const method = i === 0 ? 'moveTo' : 'lineTo';
+    ctx[method](x + Math.cos(angle) * size, y + Math.sin(angle) * size);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+let particles = [];
+function spawnParticle() {
+  particles.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    life: 1,
+    decay: 0.005 + Math.random() * 0.01,
+    size: 1 + Math.random() * 2,
+    color: ['rgba(124,92,252,', 'rgba(252,92,125,', 'rgba(255,255,255,'][Math.floor(Math.random() * 3)]
+  });
+}
+
+function drawParticles() {
+  if (Math.random() < 0.1) spawnParticle();
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+    if (p.life <= 0) return false;
+    ctx.fillStyle = p.color + p.life + ')';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    return true;
+  });
+}
+
+function getPeriod() {
+  const h = gameTime.hour;
+  if (h < 6) return { key: 'latenight', label: '🌌 深夜', sky: ['#050a1f','#0c1445','#141e6b'] };
+  if (h < 8) return { key: 'morning', label: '🌅 早上', sky: ['#ff9a9e','#fecfef','#fdfcfb'] };
+  if (h < 12) return { key: 'forenoon', label: '🌤 上午', sky: ['#4a90e2','#87CEEB','#b8e0f0'] };
+  if (h < 14) return { key: 'noon', label: '☀️ 中午', sky: ['#56CCF2','#2F80ED','#1a5fb4'] };
+  if (h < 17) return { key: 'afternoon', label: '🌞 下午', sky: ['#f6d365','#fda085','#f8b739'] };
+  if (h < 19) return { key: 'evening', label: '🌇 傍晚', sky: ['#ff7e5f','#feb47b','#ff6b6b'] };
+  if (h < 22) return { key: 'night', label: '🌙 晚上', sky: ['#0c1445','#1a237e','#283593'] };
+  return { key: 'latenight', label: '🌌 深夜', sky: ['#050a1f','#0c1445','#141e6b'] };
+}
+
+function updateHUD() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('hudTime').textContent = h + ':' + m;
+  const y = now.getFullYear();
+  const mon = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  document.getElementById('hudDate').textContent = y + '/' + mon + '/' + d;
+
+  // 显示天气
+  const weatherEl = document.getElementById('weatherInfo');
+  if (weatherEl) {
+    const city = S.weather.city || '本地';
+    const temp = S.weather.temp !== null ? S.weather.temp : '--';
+    const label = S.weather.label || '--';
+    weatherEl.textContent = city + ' ' + label + ' ' + temp + '°C';
+  }
+
+  // 计算年度进度
+  const yearStart = new Date(y, 0, 1);
+  const yearEnd = new Date(y, 11, 31, 23, 59, 59);
+  const dayOfYear = Math.floor((now - yearStart) / 86400000) + 1;
+  const isLeapYear = (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+  const totalDays = isLeapYear ? 366 : 365;
+  const progressPercent = Math.round((dayOfYear / totalDays) * 100);
+
+  const yearEl = document.getElementById('yearProgress');
+  if (yearEl) {
+    yearEl.innerHTML = '<div class="year-bar"><div class="year-fill" style="width:' + progressPercent + '%"></div></div><div class="year-text">' + dayOfYear + ' / ' + totalDays + ' 天 (' + progressPercent + '%)</div>';
+  }
+}
+
+async function handleSend() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  addBubble('user', '我', text);
+  input.value = '';
+  input.style.height = 'auto';
+
+  const aiText = await callAI(text);
+  addBubble('ai', 'AI 助手', aiText);
+
+  // 只保存AI的回复到记忆
+  saveMemory('ai', aiText);
+
+  // 解析收入记录并保存到数据库
+  await saveIncomeFromText(text, aiText);
+
+  // 保存后立即更新浮动文字
+  setTimeout(() => {
+    updateProgress().then(() => {
+      floatText = getFloatText();
+      floatTimer = 0;
+    });
+  }, 500);
+}
+
+// 解析文本中的收入信息并保存到数据库
+async function saveIncomeFromText(userText, aiText) {
+  // 匹配收入金额：如"自媒体收入500"、"收入500元"、"赚了1000"等
+  const incomePatterns = [
+    /(?:收入|赚|进账|到账|收益|获利|自媒体|兼职)[：:：\s]*([0-9]+\.?[0-9]*)\s*(?:元|万|￥|\$)?/i,
+    /([0-9]+\.?[0-9]*)\s*(?:元|万|￥|\$)\s*(?:收入|赚|进账)/i,
+    /(收入[：:]?\s*)?([0-9]+\.?[0-9]*)\s*(万|千)?\s*(?:元)?/i
+  ];
+
+  for (const pattern of incomePatterns) {
+    const match = userText.match(pattern);
+    if (match) {
+      let amount = parseFloat(match[1] || match[2]);
+      if (!isNaN(amount) && amount > 0) {
+        // 处理万为单位
+        if (match[3] === '万') amount *= 10000;
+
+        // 保存到数据库
+        try {
+          const resp = await fetch('api/index.php?route=income', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: amount,
+              type: '其他收入',
+              date: new Date().toISOString().split('T')[0],
+              remark: userText
+            })
+          });
+          const result = await resp.json();
+          console.log('收入已保存:', result);
+        } catch (e) {
+          console.error('保存收入失败:', e);
+        }
+        return;
+      }
+    }
+  }
+}
+
+async function callAI(text) {
+  let url = S.settings.apiUrl || document.getElementById('apiUrl').value.trim();
+  const key = S.settings.apiKey || document.getElementById('apiKey').value.trim();
+  const model = S.settings.model || document.getElementById('modelName').value.trim() || 'gpt-3.5-turbo';
+
+  if (!url || !key) {
+    return '请先在设置中配置 OpenAI API 地址和 Key。\n\n当前输入已保存到本地记忆。';
+  }
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  url = url.replace(/\/$/, '');
+
+  const beforePort = url;
+  url = url.replace(/:([0-9]+)(?=\/|$)/, function(match, port) {
+    const p = parseInt(port, 10);
+    if (p < 10 || p > 65535) {
+      console.log('移除错误端口:', match, '->', '');
+      return '';
+    }
+    return match;
+  });
+  if (beforePort !== url) {
+    console.log('端口修正:', beforePort, '->', url);
+  }
+
+  if (!url.includes('/v1')) {
+    url = url + '/v1';
+  }
+  if (!url.endsWith('/chat/completions')) {
+    url = url + '/chat/completions';
+  }
+
+  console.log('最终请求 URL:', url);
+
+  const systemPrompt = `你是"像素生活"的个人助理。用户会记录目标、计划、收入、任务等。
+用户发送的内容会被系统自动解析并保存。
+你的回复只需要简短确认，格式：「XX收入XX元已记录」或「XX目标已更新」，最多15字，不要解释不要闲聊。`;
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: text }
+        ],
+        temperature: 0.7,
+        max_tokens: 300
+      })
+    });
+
+    if (!resp.ok) throw new Error('API 返回 ' + resp.status);
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content || 'AI 未返回有效回复';
+  } catch (e) {
+    return 'AI 调用失败：' + e.message + '\n\n请检查 API 配置。输入已保存到本地记忆。';
+  }
+}
+
+function addBubble(role, title, content) {
+  const container = document.getElementById('bubbles');
+  const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const div = document.createElement('div');
+  div.className = 'bubble ' + role;
+  div.innerHTML = '<div class="bubble-title">' + escHtml(title) + '</div>' +
+                  '<div class="bubble-content">' + escHtml(content) + '</div>' +
+                  '<div class="bubble-time">' + time + '</div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function saveMemory(role, text) {
+  // 只保存AI的消息到数据库
+  if (role !== 'ai') return;
+  const now = new Date();
+  const timeStr = now.toLocaleString('zh-CN');
+
+  // 保存到数据库
+  fetch('api/index.php?route=ai/dialogue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'ai', content: text, time: timeStr })
+  }).then(r => r.json()).then(res => {
+    console.log('记忆已保存到数据库:', res);
+  }).catch(e => console.error('保存记忆失败:', e));
+
+  // 同时更新本地缓存
+  const mem = { role: role, text: text, time: timeStr };
+  S.memories.push(mem);
+  renderMemories();
+  updateProgress();
+}
+
+async function loadMemories() {
+  try {
+    const resp = await fetch('api/index.php?route=ai/dialogue');
+    const data = await resp.json();
+    if (data.records) {
+      S.memories = data.records.map(r => ({
+        role: r.role,
+        text: r.content,
+        time: new Date(r.created_at).toLocaleString('zh-CN')
+      }));
+    }
+  } catch(e) {
+    console.log('加载记忆失败:', e);
+  }
+}
+
+function renderMemories() {
+  const el = document.getElementById('memList');
+  if (!el) return;
+  // 只显示AI的回复
+  const aiMemories = S.memories.filter(m => m.role === 'ai');
+  if (aiMemories.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#666">暂无记录</div>';
+    return;
+  }
+  el.innerHTML = aiMemories.slice().reverse().map(m =>
+    '<div class="mem-item">' +
+      '<div class="mem-meta">🤖 AI · ' + escHtml(m.time) + '</div>' +
+      '<div class="mem-body">' + escHtml(m.text) + '</div>' +
+    '</div>'
+  ).join('');
+}
+
+async function updateProgress() {
+  const target = parseFloat(S.settings.yearTarget) || 1000000;
+  let totalIncome = 0;
+  let todayIncome = 0;
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+
+  // 从数据库获取实际收入总额和今日收入
+  try {
+    const resp = await fetch('api/index.php?route=income');
+    const data = await resp.json();
+    if (data.total) totalIncome += parseFloat(data.total);
+    if (data.today) {
+      todayIncome = parseFloat(data.today);
+      S.settings.todayIncome = todayIncome;
+    }
+    S.settings.databaseIncome = totalIncome;
+  } catch(e) {
+    console.log('获取数据库收入失败:', e);
+  }
+
+  // 加上固定收入累计
+  let fixedTotal = 0;
+  const fixedItems = S.settings.fixedIncomeItems || [];
+  fixedItems.forEach(item => {
+    if (!item.amount || item.amount <= 0) return;
+    if (item.period === 'daily') {
+      fixedTotal += item.amount * dayOfYear;
+    } else if (item.period === 'monthly') {
+      const currentMonth = now.getMonth();
+      const currentDay = now.getDate();
+      const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const fullMonths = currentMonth;
+      const currentMonthFraction = currentDay / daysInCurrentMonth;
+      fixedTotal += item.amount * (fullMonths + currentMonthFraction);
+    } else if (item.period === 'yearly') {
+      fixedTotal += item.amount * (dayOfYear / 365);
+    }
+  });
+  totalIncome += fixedTotal;
+
+  // 从AI记忆提取额外收入（作为补充）
+  S.memories.filter(m => m.role === 'ai').forEach(m => {
+    const text = m.text;
+    const incomeMatch = text.match(/收入\s*([0-9]+\.?[0-9]*)\s*(?:元|万)/);
+    if (incomeMatch) {
+      let amount = parseFloat(incomeMatch[1]);
+      if (text.includes('万')) amount *= 10000;
+      if (!isNaN(amount) && amount > 0 && amount < 100000000 && !text.includes('已记录')) {
+        totalIncome += amount;
+      }
+    }
+  });
+
+  const percent = target > 0 ? Math.min(100, (totalIncome / target) * 100) : 0;
+  const fill = document.getElementById('progressFill');
+  const text = document.getElementById('progressText');
+  if (fill) fill.style.width = percent + '%';
+  if (text) text.textContent = '¥' + Math.floor(totalIncome).toLocaleString() + ' / ¥' + target.toLocaleString();
+}
+
+function toggleSettings() {
+  const settings = document.getElementById('settingsPanel');
+  const mem = document.getElementById('memPanel');
+  const isOpen = settings.classList.contains('open');
+  mem.classList.remove('open');
+  settings.classList.toggle('open', !isOpen);
+}
+
+function toggleMemories() {
+  const settings = document.getElementById('settingsPanel');
+  const mem = document.getElementById('memPanel');
+  const isOpen = mem.classList.contains('open');
+  settings.classList.remove('open');
+  mem.classList.toggle('open', !isOpen);
+}
+
+function saveAllSettings() {
+  let url = document.getElementById('apiUrl').value.trim();
+  const key = document.getElementById('apiKey').value.trim();
+  const model = document.getElementById('modelName').value.trim() || 'gpt-3.5-turbo';
+  const year_target = parseFloat(document.getElementById('yearTarget').value) || 1000000;
+  const city = document.getElementById('cityInput').value.trim() || '北京';
+  const items = S.settings.fixedIncomeItems || [];
+  const fixed_income = JSON.stringify(items);
+
+  // URL 修正
+  if (!url) {
+    alert('请输入 API 地址');
+    return;
+  }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  url = url.replace(/\/$/, '');
+  url = url.replace(/:([0-9]+)(?=\/|$)/, function(match, port) {
+    const p = parseInt(port, 10);
+    if (p < 10 || p > 65535) return '';
+    return match;
+  });
+  if (!url.includes('/v1')) {
+    url = url + '/v1';
+  }
+
+  const data = {
+    api_url: url,
+    api_key: key,
+    model_name: model,
+    year_target: year_target,
+    city: city,
+    fixed_income: fixed_income
+  };
+
+  if (!key) {
+    alert('请输入 API Key');
+    return;
+  }
+
+  fetch('api/index.php?route=ai/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(res => {
+    if (res.message) {
+      alert('所有设置已保存\n\nAPI地址: ' + url + '\n城市: ' + city + '\n年度目标: ¥' + year_target.toLocaleString());
+      S.settings.apiUrl = url;
+      S.settings.apiKey = key;
+      S.settings.model = model;
+      S.settings.yearTarget = year_target;
+      S.settings.city = city;
+      S.settings.fixedIncome = fixed_income;
+      updateFixedIncomePreview();
+      loadWeather();
+      updateProgress();
+    } else if (res.error) {
+      alert('保存失败：' + res.error);
+    }
+  }).catch(e => {
+    alert('保存失败：' + e.message);
+  });
+}
+
+function loadCity() {
+  const city = S.settings.city || '北京';
+  const input = document.getElementById('cityInput');
+  if (input) {
+    input.value = city;
+  }
+}
+
+function addFixedIncomeItem() {
+  const nameEl = document.getElementById('fiName');
+  const amountEl = document.getElementById('fiAmount');
+  const periodEl = document.getElementById('fiPeriod');
+
+  const name = nameEl.value.trim();
+  const amount = parseFloat(amountEl.value);
+  const period = periodEl.value;
+
+  if (!name) {
+    alert('请输入名称');
+    return;
+  }
+  if (isNaN(amount) || amount <= 0) {
+    alert('请输入有效的金额');
+    return;
+  }
+
+  if (!S.settings.fixedIncomeItems) S.settings.fixedIncomeItems = [];
+  S.settings.fixedIncomeItems.push({ name, amount, period });
+
+  nameEl.value = '';
+  amountEl.value = '';
+  periodEl.value = 'monthly';
+
+  renderFixedIncomeList();
+  updateFixedIncomePreview();
+  updateProgress();
+}
+
+function removeFixedIncomeItem(index) {
+  if (!S.settings.fixedIncomeItems) return;
+  S.settings.fixedIncomeItems.splice(index, 1);
+  renderFixedIncomeList();
+  updateFixedIncomePreview();
+  updateProgress();
+}
+
+function renderFixedIncomeList() {
+  const el = document.getElementById('fixedIncomeList');
+  if (!el) return;
+  const items = S.settings.fixedIncomeItems || [];
+  if (items.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:12px;color:#666;font-size:12px">暂无固定收入，请添加</div>';
+    return;
+  }
+  const periodLabels = { daily: '/天', monthly: '/月', yearly: '/年' };
+  el.innerHTML = items.map((item, i) =>
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:6px">' +
+      '<div style="flex:1">' +
+        '<div style="font-size:13px;color:var(--text)">' + escHtml(item.name) + '</div>' +
+        '<div style="font-size:11px;color:var(--sub)">¥' + item.amount.toLocaleString() + ' ' + (periodLabels[item.period] || item.period) + '</div>' +
+      '</div>' +
+      '<button onclick="removeFixedIncomeItem(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:4px 8px">✕</button>' +
+    '</div>'
+  ).join('');
+}
+
+function updateFixedIncomePreview() {
+  const el = document.getElementById('fixedIncomePreview');
+  if (!el) return;
+  const items = S.settings.fixedIncomeItems || [];
+  if (items.length === 0) {
+    el.textContent = '';
+    return;
+  }
+  let monthly = 0;
+  items.forEach(item => {
+    if (item.period === 'daily') monthly += item.amount * 30;
+    else if (item.period === 'monthly') monthly += item.amount;
+    else if (item.period === 'yearly') monthly += item.amount / 12;
+  });
+  el.textContent = '已配置 ' + items.length + ' 项，预估月收入 ¥' + monthly.toLocaleString();
+}
+
+function saveFixedIncome() {
+  // 不再单独保存固定收入，统一由 saveAllSettings 保存
+}
+
+function loadSettings() {
+  loadMemories();
+  fetch('api/index.php?route=ai/config')
+    .then(r => r.json())
+    .then(data => {
+      console.log('Load settings response:', data);
+      if (data.api_url !== undefined || data.api_key !== undefined) {
+        let loadedUrl = data.api_url || '';
+        if (loadedUrl) {
+          if (!loadedUrl.startsWith('http://') && !loadedUrl.startsWith('https://')) {
+            loadedUrl = 'https://' + loadedUrl;
+          }
+          loadedUrl = loadedUrl.replace(/\/$/, '');
+          loadedUrl = loadedUrl.replace(/:([0-9]+)(?=\/|$)/, function(match, port) {
+            const p = parseInt(port, 10);
+            if (p < 10 || p > 65535) return '';
+            return match;
+          });
+          if (!loadedUrl.includes('/v1')) {
+            loadedUrl = loadedUrl + '/v1';
+          }
+        }
+        S.settings.apiUrl = loadedUrl;
+        S.settings.apiKey = data.api_key || '';
+        S.settings.model = data.model_name || 'gpt-3.5-turbo';
+        S.settings.yearTarget = data.year_target || 1000000;
+        S.settings.fixedIncome = data.fixed_income || '';
+        S.settings.city = data.city || '北京';
+        try {
+          S.settings.fixedIncomeItems = JSON.parse(S.settings.fixedIncome || '[]');
+        } catch (e) {
+          S.settings.fixedIncomeItems = [];
+        }
+        document.getElementById('apiUrl').value = S.settings.apiUrl;
+        document.getElementById('apiKey').value = S.settings.apiKey;
+        document.getElementById('modelName').value = S.settings.model;
+        document.getElementById('yearTarget').value = S.settings.yearTarget;
+        loadCity();
+        renderFixedIncomeList();
+        updateFixedIncomePreview();
+        updateProgress();
+      }
+    })
+    .catch(() => {
+      const urlVal = document.getElementById('apiUrl').value;
+      const keyVal = document.getElementById('apiKey').value;
+      if (urlVal || keyVal) {
+        S.settings.apiUrl = urlVal;
+        S.settings.apiKey = keyVal;
+      }
+      updateProgress();
+    });
+}
+
+function clearAll() {
+  if (confirm('确定清空所有记忆？配置将保留在服务器。')) {
+    S.memories = [];
+    try {
+      localStorage.removeItem('pixel-life-memories');
+    } catch(e) {}
+    renderMemories();
+    alert('记忆已清空');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
