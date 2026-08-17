@@ -9,7 +9,7 @@ define('DB_HOST', 'localhost');
 define('DB_PORT', '3306');
 define('DB_NAME', 'pixellife');
 define('DB_USER', 'pixellife');
-define('DB_PASS', 'liu@2015');
+define('DB_PASS', 'liu123456');
 define('DB_CHARSET', 'utf8mb4');
 
 // ---------- AI / 大模型默认配置（空值，需从数据库加载） ---------- //
